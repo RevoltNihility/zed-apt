@@ -1,0 +1,59 @@
+name: Build Zed
+
+on:
+  workflow_dispatch:
+    inputs:
+      zed_version:
+        description: "Zed version, e.g. 0.213.5"
+        required: true
+        type: string
+
+      build_version:
+        description: "Debian package revision"
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout zed-apt
+        uses: actions/checkout@v6
+
+      - name: Checkout zed-debian
+        uses: actions/checkout@v6
+        with:
+          repository: RevoltNihility/zed-debian
+          path: zed-debian
+
+      - name: Show repository contents
+        run: |
+          echo "=== zed-apt ==="
+          find . -maxdepth 3 -type f | sort
+
+          echo
+          echo "=== zed-debian ==="
+          find zed-debian -maxdepth 2 -type f | sort
+
+      - name: Build Zed package
+        run: |
+          chmod +x zed-debian/build.sh
+
+          ./zed-debian/build.sh \
+            "${{ inputs.zed_version }}" \
+            "${{ inputs.build_version }}" \
+            amd64
+
+      - name: Check generated package
+        run: |
+          echo "=== Generated .deb files ==="
+          find . -type f -name '*.deb' -print
+
+          echo
+          echo "=== Package information ==="
+          dpkg-deb -I "$(find . -type f -name '*.deb' | head -n 1)"
