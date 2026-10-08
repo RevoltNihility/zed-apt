@@ -97,6 +97,81 @@ jobs:
           echo "=== APT repository ==="
           find "$REPO" -type f | sort
 
+      - name: Import GPG signing key
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          set -e
+
+          GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+
+          printf '%s\n' "$APT_GPG_PRIVATE_KEY" \
+            | gpg --batch --import
+
+          echo "GPG key imported successfully."
+
+          gpg --batch --list-secret-keys --keyid-format=long
+
+      - name: Sign APT repository
+        env:
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -e
+
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+
+          cd apt-repo/dists/resolute
+
+          echo "=== Creating InRelease ==="
+
+          gpg \
+            --batch \
+            --yes \
+            --pinentry-mode loopback \
+            --passphrase "$APT_GPG_PASSPHRASE" \
+            --clearsign \
+            --output InRelease \
+            Release
+
+          echo "=== Creating Release.gpg ==="
+
+          gpg \
+            --batch \
+            --yes \
+            --pinentry-mode loopback \
+            --passphrase "$APT_GPG_PASSPHRASE" \
+            --armor \
+            --detach-sign \
+            --output Release.gpg \
+            Release
+
+          echo
+          echo "=== Signed repository files ==="
+          ls -lh Release InRelease Release.gpg
+
+      - name: Verify APT signature
+        run: |
+          set -e
+
+          GNUPGHOME="$RUNNER_TEMP/verify-gnupg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+
+          gpg \
+            --batch \
+            --import \
+            zed-archive-keyring.asc
+
+          echo "=== Verify InRelease ==="
+
+          gpg \
+            --batch \
+            --status-fd 1 \
+            --verify \
+            apt-repo/dists/resolute/InRelease
+
       - name: Inspect APT metadata
         run: |
           echo "=== Packages ==="
