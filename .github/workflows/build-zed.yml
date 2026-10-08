@@ -103,7 +103,8 @@ jobs:
         run: |
           set -e
 
-          GNUPGHOME="$RUNNER_TEMP/gnupg"
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+
           mkdir -p "$GNUPGHOME"
           chmod 700 "$GNUPGHOME"
 
