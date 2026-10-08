@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       zed_version:
-        description: "Zed version, e.g. 0.213.5"
+        description: "Zed version, e.g. 1.23.2"
         required: true
         type: string
 
@@ -31,14 +31,10 @@ jobs:
           repository: RevoltNihility/zed-debian
           path: zed-debian
 
-      - name: Show repository contents
+      - name: Install APT repository tools
         run: |
-          echo "=== zed-apt ==="
-          find . -maxdepth 3 -type f | sort
-
-          echo
-          echo "=== zed-debian ==="
-          find zed-debian -maxdepth 2 -type f | sort
+          sudo apt-get update
+          sudo apt-get install -y apt-utils
 
       - name: Build Zed package
         working-directory: zed-debian
@@ -50,11 +46,58 @@ jobs:
             "${{ inputs.build_version }}" \
             amd64
 
-      - name: Check generated package
+      - name: Create APT repository
+        shell: bash
         run: |
-          echo "=== Generated .deb files ==="
-          find . -type f -name '*.deb' -print
+          set -e
+
+          REPO="$GITHUB_WORKSPACE/apt-repo"
+
+          mkdir -p \
+            "$REPO/pool/main/z/zed" \
+            "$REPO/dists/resolute/main/binary-amd64"
+
+          echo "=== Find generated .deb ==="
+          find "$GITHUB_WORKSPACE" -type f -name '*.deb' -print
+
+          DEB="$(find "$GITHUB_WORKSPACE" -type f -name '*.deb' | head -n 1)"
+
+          if [ -z "$DEB" ]; then
+            echo "ERROR: No .deb package found."
+            exit 1
+          fi
+
+          echo "Using package:"
+          echo "$DEB"
+
+          cp "$DEB" "$REPO/pool/main/z/zed/"
 
           echo
-          echo "=== Package information ==="
-          dpkg-deb -I "$(find . -type f -name '*.deb' | head -n 1)"
+          echo "=== Generate Packages ==="
+
+          apt-ftparchive packages \
+            "$REPO/pool" \
+            > "$REPO/dists/resolute/main/binary-amd64/Packages"
+
+          gzip -9 -k \
+            "$REPO/dists/resolute/main/binary-amd64/Packages"
+
+          echo
+          echo "=== Generate Release ==="
+
+          apt-ftparchive release \
+            "$REPO/dists/resolute" \
+            > "$REPO/dists/resolute/Release"
+
+          echo
+          echo "=== APT repository ==="
+          find "$REPO" -type f | sort
+
+      - name: Inspect APT metadata
+        run: |
+          echo "=== Packages ==="
+          cat apt-repo/dists/resolute/main/binary-amd64/Packages
+
+          echo
+          echo "=== Release ==="
+          cat apt-repo/dists/resolute/Release
