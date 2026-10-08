@@ -59,16 +59,12 @@ jobs:
             "$REPO/pool/main/z/zed" \
             "$REPO/dists/resolute/main/binary-amd64"
 
-          echo "=== Find generated .deb ==="
-          find "$GITHUB_WORKSPACE" -type f -name '*.deb' -print
-
           DEB="$(find "$GITHUB_WORKSPACE" -type f \
             -name "zed_${{ inputs.zed_version }}-${{ inputs.build_version }}~resolute_amd64_ubu.deb" \
             | head -n 1)"
 
           if [ -z "$DEB" ]; then
             echo "ERROR: resolute amd64 package not found."
-            echo "Available .deb files:"
             find "$GITHUB_WORKSPACE" -type f -name '*.deb' -print
             exit 1
           fi
@@ -77,12 +73,9 @@ jobs:
           echo "$DEB"
 
           cp "$DEB" "$REPO/pool/main/z/zed/"
-          echo
-          echo "=== Generate Packages ==="
 
           (
             cd "$REPO"
-
             apt-ftparchive packages \
               pool \
               > dists/resolute/main/binary-amd64/Packages
@@ -91,11 +84,21 @@ jobs:
           gzip -9 -k \
             "$REPO/dists/resolute/main/binary-amd64/Packages"
 
-          echo
-          echo "=== Generate Release ==="
+          cat > "$RUNNER_TEMP/release.conf" <<'EOF'
+          APT::FTPArchive::Release {
+            Origin "Zed";
+            Label "Zed APT Repository";
+            Suite "resolute";
+            Codename "resolute";
+            Architectures "amd64";
+            Components "main";
+            Description "Zed APT repository";
+          };
+          EOF
 
-          apt-ftparchive release \
-            "$REPO/dists/resolute" \
+          apt-ftparchive \
+            -c "$RUNNER_TEMP/release.conf" \
+            release "$REPO/dists/resolute" \
             > "$REPO/dists/resolute/Release"
 
           echo
