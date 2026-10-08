@@ -75,9 +75,13 @@ jobs:
           echo
           echo "=== Generate Packages ==="
 
-          apt-ftparchive packages \
-            "$REPO/pool" \
-            > "$REPO/dists/resolute/main/binary-amd64/Packages"
+          (
+            cd "$REPO"
+
+            apt-ftparchive packages \
+              pool \
+              > dists/resolute/main/binary-amd64/Packages
+          )
 
           gzip -9 -k \
             "$REPO/dists/resolute/main/binary-amd64/Packages"
