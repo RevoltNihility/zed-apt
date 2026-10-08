@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -99,6 +101,10 @@ jobs:
           echo
           echo "=== APT repository ==="
           find "$REPO" -type f | sort
+
+      - name: Publish repository key
+        run: |
+          cp zed-archive-keyring.asc apt-repo/zed-archive-keyring.asc
 
       - name: Import GPG signing key
         env:
@@ -184,3 +190,15 @@ jobs:
           echo
           echo "=== Release ==="
           cat apt-repo/dists/resolute/Release
+
+                - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload APT repository
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./apt-repo
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
