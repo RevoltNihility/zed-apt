@@ -41,10 +41,11 @@ jobs:
           find zed-debian -maxdepth 2 -type f | sort
 
       - name: Build Zed package
+        working-directory: zed-debian
         run: |
-          chmod +x zed-debian/build.sh
+          chmod +x build.sh
 
-          ./zed-debian/build.sh \
+          ./build.sh \
             "${{ inputs.zed_version }}" \
             "${{ inputs.build_version }}" \
             amd64
