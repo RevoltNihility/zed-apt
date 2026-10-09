@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       zed_version:
-        description: "Zed version, e.g. 1.23.2"
-        required: true
+        description: "Zed version (leave empty to detect latest)"
+        required: false
         type: string
 
       build_version:
