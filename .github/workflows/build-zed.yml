@@ -13,6 +13,8 @@ on:
         required: true
         default: "1"
         type: string
+  schedule:
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: read
@@ -37,15 +39,45 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y apt-utils
+      
+      - name: Detect Zed version
+        id: detect_version
+        env:
+          MANUAL_VERSION: ${{ inputs.zed_version }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$MANUAL_VERSION" ]; then
+            VERSION="$MANUAL_VERSION"
+            echo "Using manually specified version: $VERSION"
+          else
+            RESPONSE="$(curl -fsSL \
+              https://api.github.com/repos/zed-industries/zed/releases/latest)"
+
+            TAG="$(jq -r '.tag_name // empty' <<< "$RESPONSE")"
+
+            if [ -z "$TAG" ]; then
+              echo "ERROR: Could not detect the latest Zed release."
+              exit 1
+            fi
+
+            VERSION="${TAG#v}"
+            echo "Detected latest Zed version: $VERSION"
+          fi
+
+          echo "zed_version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build Zed package
         working-directory: zed-debian
+        env:
+          ZED_VERSION: ${{ steps.detect_version.outputs.zed_version }}
+          BUILD_VERSION: ${{ inputs.build_version || '1' }}
         run: |
+          set -euo pipefail
           chmod +x build.sh
-
           ./build.sh \
-            "${{ inputs.zed_version }}" \
-            "${{ inputs.build_version }}" \
+            "$ZED_VERSION" \
+            "$BUILD_VERSION" \
             amd64
 
       - name: Create APT repository
