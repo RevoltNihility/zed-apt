@@ -80,8 +80,11 @@ jobs:
             "$BUILD_VERSION" \
             amd64
 
-      - name: Create APT repository
-        shell: bash
+      
+      - name: Prepare APT repository
+        env:
+          ZED_VERSION: ${{ steps.detect_version.outputs.zed_version }}
+          BUILD_VERSION: ${{ inputs.build_version || '1' }}
         run: |
           set -e
 
@@ -92,11 +95,12 @@ jobs:
             "$REPO/dists/resolute/main/binary-amd64"
 
           DEB="$(find "$GITHUB_WORKSPACE" -type f \
-            -name "zed_${{ inputs.zed_version }}-${{ inputs.build_version }}~resolute_amd64_ubu.deb" \
+            -name "zed_${ZED_VERSION}-${BUILD_VERSION}~resolute_amd64_ubu.deb" \
             | head -n 1)"
 
           if [ -z "$DEB" ]; then
             echo "ERROR: resolute amd64 package not found."
+            echo "Expected: zed_${ZED_VERSION}-${BUILD_VERSION}~resolute_amd64_ubu.deb"
             find "$GITHUB_WORKSPACE" -type f -name '*.deb' -print
             exit 1
           fi
@@ -108,8 +112,7 @@ jobs:
 
           (
             cd "$REPO"
-            apt-ftparchive packages \
-              pool \
+            apt-ftparchive packages pool \
               > dists/resolute/main/binary-amd64/Packages
           )
 
