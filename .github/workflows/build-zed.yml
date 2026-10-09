@@ -162,6 +162,8 @@ jobs:
             release "$REPO/dists/resolute" \
             > "$REPO/dists/resolute/Release"
 
+          echo "$ZED_VERSION" > "$REPO/latest-version.txt"
+
           echo
           echo "=== APT repository ==="
           find "$REPO" -type f | sort
